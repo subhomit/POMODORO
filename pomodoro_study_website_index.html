@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FocusFlow — Pomodoro Study Timer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html,body { height: 100%; }
+    body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(6px); }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-slate-900 to-gray-900 text-white flex items-center justify-center p-6">
+  <main class="w-full max-w-4xl">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Left: Timer Card -->
+      <section class="glass p-8 rounded-2xl shadow-2xl">
+        <div class="flex items-start justify-between">
+          <h1 class="text-2xl font-bold">FocusFlow</h1>
+          <div class="flex gap-2 items-center">
+            <button id="settingsBtn" class="text-sm px-3 py-1 rounded-md border border-white/10">Settings</button>
+            <button id="themeBtn" class="text-sm px-3 py-1 rounded-md border border-white/10">Theme</button>
+          </div>
+        </div>
+
+        <div class="mt-6 text-center">
+          <div id="modeLabel" class="uppercase text-xs text-gray-300">Work</div>
+          <div id="timerDisplay" class="text-7xl font-extrabold mt-2">25:00</div>
+          <div class="mt-4 flex items-center justify-center gap-4">
+            <button id="startBtn" class="px-6 py-2 rounded-lg bg-green-500 hover:bg-green-600 font-semibold">Start</button>
+            <button id="pauseBtn" class="px-6 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 font-semibold">Pause</button>
+            <button id="resetBtn" class="px-6 py-2 rounded-lg bg-red-500 hover:bg-red-600 font-semibold">Reset</button>
+          </div>
+
+          <div class="mt-6 flex items-center justify-center gap-4 text-sm text-gray-300">
+            <div>Pomodoros: <span id="completedCount" class="font-bold">0</span></div>
+            <div>|</div>
+            <div>Cycle: <span id="cycleCount" class="font-bold">0/4</span></div>
+          </div>
+
+          <div class="mt-6 flex items-center justify-center gap-4">
+            <button id="skipBtn" class="text-sm px-3 py-1 rounded-md border border-white/10">Skip</button>
+            <button id="soundToggle" class="text-sm px-3 py-1 rounded-md border border-white/10">🔔 Sound</button>
+            <button id="notifyToggle" class="text-sm px-3 py-1 rounded-md border border-white/10">🔔 Notify</button>
+          </div>
+
+          <div class="mt-6">
+            <div class="h-3 bg-white/6 rounded-full overflow-hidden">
+              <div id="progressBar" class="h-3 bg-green-400 w-0"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Info & Stats -->
+      <aside class="glass p-6 rounded-2xl shadow-2xl flex flex-col gap-4">
+        <div>
+          <h2 class="text-lg font-semibold">Today</h2>
+          <p class="text-sm text-gray-300 mt-1">Quick stats to keep you motivated.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="p-4 bg-white/3 rounded-lg text-center">
+            <div class="text-3xl font-bold" id="todayPomodoros">0</div>
+            <div class="text-sm text-gray-300">Pomodoros</div>
+          </div>
+          <div class="p-4 bg-white/3 rounded-lg text-center">
+            <div class="text-3xl font-bold" id="totalMinutes">0</div>
+            <div class="text-sm text-gray-300">Focused min</div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="font-semibold">Motivation</h3>
+          <blockquote id="quote" class="italic text-gray-300 mt-2">"Stay focused — your future self will thank you."</blockquote>
+        </div>
+
+        <div class="mt-auto">
+          <h3 class="font-semibold">Session History</h3>
+          <div id="history" class="text-sm text-gray-300 mt-2 max-h-48 overflow-auto p-2 bg-white/2 rounded">
+            <!-- history entries -->
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Footer small controls -->
+    <div class="mt-6 text-center text-gray-400 text-sm">Made for students • Auto long break after 4 pomodoros • Data saved locally</div>
+  </main>
+
+  <!-- Settings Modal (hidden by default) -->
+  <div id="modal" class="fixed inset-0 flex items-center justify-center p-6 hidden">
+    <div class="absolute inset-0 bg-black/60" id="modalBg"></div>
+    <form id="settingsForm" class="relative bg-slate-800 p-6 rounded-2xl w-full max-w-lg glass">
+      <h3 class="text-lg font-semibold">Settings</h3>
+      <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+        <label class="flex flex-col">
+          Work (min)
+          <input id="workMins" type="number" min="1" value="25" class="mt-1 p-2 rounded bg-white/5" />
+        </label>
+        <label class="flex flex-col">
+          Short Break (min)
+          <input id="shortMins" type="number" min="1" value="5" class="mt-1 p-2 rounded bg-white/5" />
+        </label>
+        <label class="flex flex-col">
+          Long Break (min)
+          <input id="longMins" type="number" min="1" value="15" class="mt-1 p-2 rounded bg-white/5" />
+        </label>
+        <label class="flex flex-col">
+          Rounds before long break
+          <input id="roundsBeforeLong" type="number" min="1" value="4" class="mt-1 p-2 rounded bg-white/5" />
+        </label>
+      </div>
+
+      <div class="mt-4 flex gap-2 justify-end">
+        <button type="button" id="closeModal" class="px-4 py-2 rounded bg-white/5">Close</button>
+        <button type="submit" class="px-4 py-2 rounded bg-green-500">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <audio id="ding" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="></audio>
+
+  <script>
+    // --- Elements ---
+    const timerDisplay = document.getElementById('timerDisplay');
+    const modeLabel = document.getElementById('modeLabel');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const progressBar = document.getElementById('progressBar');
+    const completedCount = document.getElementById('completedCount');
+    const cycleCount = document.getElementById('cycleCount');
+    const todayPomodoros = document.getElementById('todayPomodoros');
+    const totalMinutes = document.getElementById('totalMinutes');
+    const quoteEl = document.getElementById('quote');
+    const historyEl = document.getElementById('history');
+    const soundToggle = document.getElementById('soundToggle');
+    const notifyToggle = document.getElementById('notifyToggle');
+    const ding = document.getElementById('ding');
+
+    // Settings modal
+    const modal = document.getElementById('modal');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const closeModal = document.getElementById('closeModal');
+    const settingsForm = document.getElementById('settingsForm');
+    const workMinsInput = document.getElementById('workMins');
+    const shortMinsInput = document.getElementById('shortMins');
+    const longMinsInput = document.getElementById('longMins');
+    const roundsBeforeLong = document.getElementById('roundsBeforeLong');
+
+    // State
+    let settings = {
+      work: 25,
+      short: 5,
+      long: 15,
+      rounds: 4,
+      sound: true,
+      notify: false
+    };
+
+    let state = {
+      mode: 'work', // 'work' | 'short' | 'long'
+      timeLeft: settings.work * 60,
+      running: false,
+      completed: 0,
+      cycleProgress: 0,
+      history: []
+    };
+
+    const QUOTES = [
+      "Stay focused — your future self will thank you.",
+      "Discipline beats motivation.",
+      "Small steps lead to big achievements.",
+      "Don't stop until you're proud.",
+      "One pomodoro at a time."
+    ];
+
+    // --- Persistence ---
+    function load() {
+      const s = localStorage.getItem('focusflow_settings');
+      const st = localStorage.getItem('focusflow_state');
+      if (s) settings = Object.assign(settings, JSON.parse(s));
+      if (st) state = Object.assign(state, JSON.parse(st));
+      // apply settings to inputs
+      workMinsInput.value = settings.work;
+      shortMinsInput.value = settings.short;
+      longMinsInput.value = settings.long;
+      roundsBeforeLong.value = settings.rounds;
+      state.timeLeft = (state.mode === 'work' ? settings.work : (state.mode === 'short' ? settings.short : settings.long)) * 60;
+    }
+
+    function save() {
+      localStorage.setItem('focusflow_settings', JSON.stringify(settings));
+      localStorage.setItem('focusflow_state', JSON.stringify(state));
+    }
+
+    // --- Timer helpers ---
+    function formatTime(sec) {
+      const m = Math.floor(sec/60).toString().padStart(2,'0');
+      const s = (sec%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+
+    function updateUI() {
+      timerDisplay.textContent = formatTime(state.timeLeft);
+      modeLabel.textContent = state.mode === 'work' ? 'Work' : (state.mode === 'short' ? 'Short Break' : 'Long Break');
+      completedCount.textContent = state.completed;
+      cycleCount.textContent = `${state.cycleProgress}/${settings.rounds}`;
+
+      // progress bar
+      const total = (state.mode === 'work') ? settings.work*60 : (state.mode === 'short' ? settings.short*60 : settings.long*60);
+      const pct = Math.max(0, Math.min(100, (1 - state.timeLeft/total) * 100));
+      progressBar.style.width = pct + '%';
+
+      // today stats
+      const today = state.history.filter(e => new Date(e.t).toDateString() === new Date().toDateString());
+      todayPomodoros.textContent = today.filter(e => e.type === 'work-complete').length;
+      const mins = today.filter(e => e.type === 'work-complete').length * settings.work;
+      totalMinutes.textContent = mins;
+
+      // history
+      historyEl.innerHTML = '';
+      state.history.slice().reverse().forEach(h => {
+        const d = new Date(h.t);
+        const el = document.createElement('div');
+        el.className = 'mb-2';
+        el.innerHTML = `<div class="text-xs text-gray-300">${d.toLocaleString()}</div><div class='text-sm'>${h.label}</div>`;
+        historyEl.appendChild(el);
+      });
+
+      // quote
+      quoteEl.textContent = QUOTES[Math.floor(Math.random()*QUOTES.length)];
+
+      save();
+    }
+
+    // --- Notifications ---
+    function notify(title, body) {
+      if (settings.notify && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+      if (settings.sound) ding.play().catch(()=>{});
+    }
+
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission().then(p => {
+          settings.notify = (p === 'granted');
+          notifyToggle.textContent = settings.notify ? '🔔 Notify' : '🔕 Notify';
+          save();
+        });
+      }
+    }
+
+    // --- Timer loop ---
+    let intervalId = null;
+    function tick() {
+      if (state.running && state.timeLeft > 0) {
+        state.timeLeft -= 1;
+        updateUI();
+        return;
+      }
+      if (state.running && state.timeLeft === 0) {
+        // mode finished
+        if (state.mode === 'work') {
+          state.completed += 1;
+          state.cycleProgress += 1;
+          state.history.push({ t: Date.now(), type: 'work-complete', label: 'Completed a pomodoro (work)'});
+          notify('Pomodoro complete', 'Time for a break!');
+          // decide next
+          if (state.cycleProgress >= settings.rounds) {
+            state.mode = 'long';
+            state.cycleProgress = 0;
+          } else {
+            state.mode = 'short';
+          }
+        } else {
+          state.history.push({ t: Date.now(), type: 'break-complete', label: state.mode === 'short' ? 'Short break ended' : 'Long break ended' });
+          notify('Break over', 'Back to work!');
+          state.mode = 'work';
+        }
+        // set new time
+        state.timeLeft = (state.mode === 'work' ? settings.work : (state.mode === 'short' ? settings.short : settings.long)) * 60;
+        updateUI();
+      }
+    }
+
+    function start() {
+      if (!state.running) {
+        state.running = true;
+        if (!intervalId) intervalId = setInterval(tick, 1000);
+      }
+      updateUI();
+    }
+    function pause() {
+      state.running = false;
+      updateUI();
+    }
+    function reset() {
+      state.running = false;
+      state.mode = 'work';
+      state.timeLeft = settings.work * 60;
+      save();
+      updateUI();
+    }
+
+    function skip() {
+      state.timeLeft = 1; // let tick finish it in next second (keeps consistent finishing logic)
+      updateUI();
+    }
+
+    // --- Controls ---
+    startBtn.addEventListener('click', () => start());
+    pauseBtn.addEventListener('click', () => pause());
+    resetBtn.addEventListener('click', () => reset());
+    skipBtn.addEventListener('click', () => skip());
+
+    soundToggle.addEventListener('click', () => {
+      settings.sound = !settings.sound;
+      soundToggle.textContent = settings.sound ? '🔔 Sound' : '🔕 Sound';
+      save();
+    });
+
+    notifyToggle.addEventListener('click', () => {
+      if (Notification.permission === 'granted') {
+        settings.notify = !settings.notify;
+        notifyToggle.textContent = settings.notify ? '🔔 Notify' : '🔕 Notify';
+        save();
+      } else {
+        requestNotificationPermission();
+      }
+    });
+
+    // Settings modal handlers
+    settingsBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+    closeModal.addEventListener('click', () => modal.classList.add('hidden'));
+    modal.addEventListener('click', (e) => { if (e.target.id === 'modalBg') modal.classList.add('hidden'); });
+
+    settingsForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const w = parseInt(workMinsInput.value) || 25;
+      const s = parseInt(shortMinsInput.value) || 5;
+      const l = parseInt(longMinsInput.value) || 15;
+      const r = Math.max(1, parseInt(roundsBeforeLong.value) || 4);
+      settings.work = w; settings.short = s; settings.long = l; settings.rounds = r;
+      // update timers
+      state.timeLeft = (state.mode === 'work' ? settings.work : (state.mode === 'short' ? settings.short : settings.long)) * 60;
+      modal.classList.add('hidden');
+      save();
+      updateUI();
+    });
+
+    // Theme toggle (minimal) - just invert background for fun
+    const themeBtn = document.getElementById('themeBtn');
+    let dark = true;
+    themeBtn.addEventListener('click', () => {
+      dark = !dark;
+      if (dark) document.body.classList.replace('bg-white','bg-gradient-to-b');
+      // (This is intentionally minimal — you can expand later)
+    });
+
+    // init
+    load();
+    updateUI();
+
+    // make sure we have interval running if user reloads while running
+    if (state.running && !intervalId) intervalId = setInterval(tick, 1000);
+
+    // expose simple keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === ' ') { e.preventDefault(); state.running ? pause() : start(); }
+      if (e.key.toLowerCase() === 'r') reset();
+      if (e.key.toLowerCase() === 's') skip();
+    });
+
+    // accessibility: reduce motion when user prefers reduced motion
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion)').matches) {
+      progressBar.style.transition = 'none';
+    }
+  </script>
+</body>
+</html>
